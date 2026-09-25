@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TermoSense — Dashboard de Monitoramento Térmico</title>
+  <meta name="description" content="Protótipo de dashboard IoT para monitoramento de temperatura por infravermelho (ESP32 + MLX90614 + VL53L0X)." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar glass">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+          <circle cx="11.5" cy="17.5" r="1" fill="currentColor" stroke="none" />
+        </svg>
+        <span class="brand-name">TermoSense</span>
+        <span class="badge-ghost">Protótipo</span>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-reset" id="btn-reset" type="button" title="Zera as leituras, os alertas e o histórico simulados">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <polyline points="3 4 3 9 8 9" />
+          </svg>
+          <span id="btn-reset-label">Reiniciar Dados</span>
+        </button>
+        <span class="pill pill-online"><span class="dot dot-pulse"></span>Sistema Online</span>
+        <span class="clock mono" id="clock">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ============ CABEÇALHO DA PÁGINA ============ -->
+    <section class="page-head">
+      <div>
+        <h1>Resumo do Dia</h1>
+        <p>Monitoramento de temperatura por infravermelho em ambientes de grande circulação — dados simulados para apresentação.</p>
+      </div>
+      <div class="page-head-meta">
+        <span class="meta-label">Última atualização</span>
+        <span class="meta-value" id="data-hoje">—</span>
+      </div>
+    </section>
+
+    <!-- ============ KPIs ============ -->
+    <section class="kpis">
+      <article class="card kpi">
+        <div class="kpi-label">Leituras de Hoje</div>
+        <div class="kpi-value mono" id="kpi-leituras">—</div>
+        <div class="kpi-sub" id="kpi-leituras-sub"><span class="trend up">▲ 12,4%</span> em relação a ontem</div>
+      </article>
+      <article class="card kpi">
+        <div class="kpi-label">Temperatura Média</div>
+        <div class="kpi-value mono"><span id="kpi-media">36,2</span><span class="unit">°C</span></div>
+        <div class="kpi-sub" id="kpi-media-sub">faixa do dia: 35,1 – 37,8 °C</div>
+      </article>
+      <article class="card kpi">
+        <div class="kpi-label">Alertas</div>
+        <div class="kpi-value mono warn-text" id="kpi-alertas">3</div>
+        <div class="kpi-sub" id="kpi-alertas-sub">2 térmicos · 1 de comunicação (resolvido)</div>
+      </article>
+    </section>
+
+    <!-- ============ LEITURA ATUAL + GRÁFICO ============ -->
+    <section class="grid-2">
+
+      <article class="card leitura-card">
+        <div class="card-head">
+          <h2>Leitura Atual</h2>
+          <span class="pill" id="estado-pill"><span class="dot"></span><span id="estado-texto">Dentro do normal</span></span>
+        </div>
+        <div class="leitura-body">
+          <div class="gauge-wrap">
+            <svg class="gauge" viewBox="0 0 200 200" aria-hidden="true">
+              <circle class="gauge-track" cx="100" cy="100" r="84" />
+              <circle class="gauge-arc" id="gauge-arc" cx="100" cy="100" r="84" />
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-temp mono" id="temp-atual">36,4</div>
+              <div class="gauge-unit">°C</div>
+            </div>
+          </div>
+          <div class="leitura-side">
+            <div class="leitura-row">
+              <span class="leitura-label">Sensor</span>
+              <span class="leitura-value">MLX90614 · sem contato</span>
+            </div>
+            <div class="leitura-row">
+              <span class="leitura-label">Posicionamento</span>
+              <span class="leitura-value mono" id="distancia">32 cm · OK</span>
+            </div>
+            <div class="leitura-row">
+              <span class="leitura-label">Sinalização LED</span>
+              <span class="leitura-value" id="led-texto"><span class="dot dot-green"></span>Verde</span>
+            </div>
+            <ul class="legend">
+              <li><span class="dot dot-green"></span>≤ 37,5 °C — normal</li>
+              <li><span class="dot dot-amber"></span>37,5 – 38,5 °C — alerta</li>
+              <li><span class="dot dot-red"></span>&gt; 38,5 °C — crítico</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="card chart-card">
+        <div class="card-head">
+          <h2>Leituras por Hora</h2>
+          <span class="chart-legend">
+            <span><span class="swatch swatch-blue"></span>Leituras</span>
+            <span><span class="swatch swatch-amber"></span>Alertas</span>
+          </span>
+        </div>
+        <div class="chart-wrap" id="chart"></div>
+      </article>
+
+    </section>
+
+    <!-- ============ HARDWARE ============ -->
+    <section class="card hw-card">
+      <div class="card-head">
+        <h2>Status do Hardware</h2>
+        <span class="pill pill-online"><span class="dot dot-pulse"></span>Todos os módulos ativos</span>
+      </div>
+      <div class="hw-grid">
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">ESP32 DevKit V1</div>
+            <div class="hw-detail mono" id="hw-esp32">Wi-Fi conectado · 192.168.0.42</div>
+          </div>
+          <span class="hw-status ok">Online</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">MLX90614 · Sensor IR</div>
+            <div class="hw-detail mono" id="hw-mlx">Leitura: 36,4 °C · ±0,2 °C</div>
+          </div>
+          <span class="hw-status ok">Operante</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">VL53L0X · Sensor ToF</div>
+            <div class="hw-detail mono" id="hw-vl53">Distância: 32 cm · Posicionamento OK</div>
+          </div>
+          <span class="hw-status ok">Ativo</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">Display OLED 0,96" I2C</div>
+            <div class="hw-detail mono" id="hw-oled">Exibindo: 36,4 °C</div>
+          </div>
+          <span class="hw-status ok">Ativo</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">LED RGB</div>
+            <div class="hw-detail mono" id="hw-led">Cor: verde · estado normal</div>
+          </div>
+          <span class="hw-status ok" id="st-led">Verde</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">Buzzer Ativo</div>
+            <div class="hw-detail mono" id="hw-buzzer">Silencioso · sem alarmes</div>
+          </div>
+          <span class="hw-status ok" id="st-buzzer">Silencioso</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">Botão Push-button</div>
+            <div class="hw-detail mono">Aguardando acionamento</div>
+          </div>
+          <span class="hw-status ok">Pronto</span>
+        </div>
+
+        <div class="hw-item">
+          <div class="hw-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="hw-info">
+            <div class="hw-name">Fonte 5V / 2A</div>
+            <div class="hw-detail mono" id="hw-fonte">Tensão: 4,98 V · 0,42 A</div>
+          </div>
+          <span class="hw-status ok">Estável</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ REGISTRO DE ALERTAS ============ -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Registro de Alertas</h2>
+        <span class="meta-label mono" id="uptime">uptime —</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Horário</th><th>Severidade</th><th>Evento</th><th>Origem</th><th>Status</th></tr>
+          </thead>
+          <tbody id="tabela-alertas">
+            <tr>
+              <td class="mono">14:32</td>
+              <td><span class="sev warn"><span class="dot dot-amber"></span>Alerta</span></td>
+              <td>Temperatura acima do limite (37,8 °C)</td>
+              <td>Terminal 03 — Entrada principal</td>
+              <td class="muted">Verificado</td>
+            </tr>
+            <tr>
+              <td class="mono">10:15</td>
+              <td><span class="sev warn"><span class="dot dot-amber"></span>Alerta</span></td>
+              <td>Temperatura acima do limite (37,6 °C)</td>
+              <td>Terminal 01 — Recepção</td>
+              <td class="muted">Verificado</td>
+            </tr>
+            <tr>
+              <td class="mono">09:04</td>
+              <td><span class="sev crit"><span class="dot dot-red"></span>Erro</span></td>
+              <td>Falha de comunicação com o sensor MLX90614</td>
+              <td>Terminal 03 — Entrada principal</td>
+              <td class="muted">Resolvido</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-credits">
+        <span><strong>Estudante:</strong> Victória Angélica Regis</span>
+        <span><strong>Orientador:</strong> Prof. Paulo Fernando Kuss</span>
+        <span><strong>Turma:</strong> IA24 · Curso Técnico em Informática — IFC Campus Camboriú</span>
+        <span>TermoSense · Protótipo estático para feira científica</span>
+      </div>
+      <span class="mono">ESP32 DevKit V1 · MLX90614 · VL53L0X · OLED 0,96" · PostgreSQL</span>
+    </footer>
+
+  </main>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
